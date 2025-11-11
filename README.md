@@ -1,6 +1,8 @@
 #Sistema de Gerenciamento de Academia
 
 Alunos: Pedro Henrique Mendes, João Pedro Andrade, Heitor Sebastião e Issac Almada
+
+Link Cronograma: https://trello.com/invite/b/68ffef0094d7c0dec6424363/ATTI83c86f51769ab101e3c8cdee06d15ac18DE1C4FE/cronograma
 ---
 
 Descrição
