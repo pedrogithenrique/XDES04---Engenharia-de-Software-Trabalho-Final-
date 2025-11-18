@@ -1,0 +1,432 @@
+
+    <!DOCTYPE html>
+    <html lang="pt-br">
+    <head>
+        <meta charset="UTF-8">
+        <title>Academia - {{ titulo }}</title>
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+        @import url('https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css');
+
+        :root {
+            --sidebar-bg: #222831;
+            --content-bg: #f4f7f6;
+            --card-bg: #ffffff;
+            --primary-color: #007bff;
+            --text-dark: #333;
+            --text-light: #f0f0f0;
+            --border-color: #e0e0e0;
+        }
+
+        body { 
+            font-family: 'Roboto', sans-serif; 
+            margin: 0; 
+            background-color: var(--content-bg);
+            color: var(--text-dark);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .sidebar {
+            width: 260px;
+            background-color: var(--sidebar-bg);
+            color: var(--text-light);
+            padding: 20px;
+            height: 100vh;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+        .sidebar-header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #444;
+        }
+        .sidebar-header h1 {
+            color: #fff;
+            font-size: 1.5em;
+            margin: 0;
+            border: none;
+            text-transform: uppercase;
+        }
+        .sidebar-menu {
+            list-style: none;
+            padding: 20px 0;
+            margin: 0;
+            flex-grow: 1;
+        }
+        .sidebar-menu li a {
+            color: var(--text-light);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 1.1em;
+            padding: 15px 10px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .sidebar-menu li a:hover {
+            background-color: var(--primary-color);
+            color: #fff;
+        }
+        .sidebar-menu li a.active {
+             background-color: var(--primary-color);
+             color: #fff;
+        }
+        
+        .main-content {
+            flex: 1;
+            height: 100vh;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+        
+        .container {
+            max-width: 1100px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        
+        h1, h2 { 
+            color: var(--text-dark);
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 5px;
+            margin-top: 20px;
+            text-transform: none;
+        }
+        
+        form { 
+            background: var(--card-bg); 
+            padding: 25px; 
+            border-radius: 8px; 
+            margin-bottom: 30px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border: 1px solid var(--border-color);
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        form div { 
+            margin-bottom: 10px; 
+        }
+        label { 
+            display: block; 
+            margin-bottom: 8px; 
+            font-weight: 500; 
+            color: #555;
+        }
+        
+        input[type='text'], input[type='email'], input[type='tel'], input[type='date'], input[type='number'], select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc; 
+            border-radius: 4px;
+            box-sizing: border-box; 
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        input:focus, select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 5px rgba(0,123,255,0.3);
+            outline: none;
+        }
+        
+        ::placeholder {
+            color: #aaa;
+            font-style: italic;
+        }
+        
+        button, .btn {
+            background: var(--primary-color); 
+            color: white; 
+            padding: 12px 20px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        button:hover, .btn:hover { 
+            background: #0056b3; 
+        }
+        
+        .form-filtro {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap; 
+            gap: 10px;
+            align-items: center;
+        }
+        .form-filtro input, .form-filtro select {
+            width: auto;
+            flex-grow: 1; 
+            margin-bottom: 0;
+        }
+        .form-filtro button {
+            padding: 12px 15px;
+        }
+        .form-filtro .btn-cancelar {
+            background: #6c757d;
+            padding: 12px 15px;
+            font-size: 16px;
+        }
+        
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 20px; 
+            background: var(--card-bg);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border-radius: 8px;
+            overflow: hidden; 
+        }
+        th, td { 
+            border-bottom: 1px solid var(--border-color); 
+            padding: 15px; 
+            text-align: left; 
+            vertical-align: middle;
+        }
+        th { 
+            background: #f0f0f0; 
+            color: var(--text-dark);
+            font-weight: 700;
+        }
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+        
+        .acoes { 
+            display: flex; 
+            gap: 10px; 
+        }
+        .btn-editar { 
+            background: #ffc107; color: black; padding: 8px 12px;
+        }
+        .btn-editar:hover { background: #e0a800; }
+        .btn-remover { 
+            background: #dc3545; color: white; padding: 8px 12px;
+        }
+        .btn-remover:hover { background: #c82333; }
+        
+        .bi {
+            vertical-align: middle;
+            margin-right: 4px;
+        }
+        
+        .msg-sucesso { 
+            background: #d4edda; 
+            color: #155724; 
+            padding: 15px; 
+            border-radius: 4px; 
+            margin-bottom: 20px;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .msg-erro {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .campo-fixo {
+            background: #eee;
+            padding: 10px 15px;
+            border-radius: 4px;
+        }
+        .campo-fixo label {
+            color: #777;
+        }
+        .campo-fixo span {
+            font-size: 1.1em;
+            color: #000;
+            font-weight: 500;
+        }
+        .btn-verde { background: #28a745; }
+        .btn-verde:hover { background: #218838; }
+        .btn-cancelar {
+            background: #6c757d;
+            margin-left: 10px;
+        }
+        .btn-cancelar:hover { background: #5a6268; }
+        
+        .status-ativo {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 5px 10px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: 0.9em;
+        }
+        .status-inativo {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 5px 10px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: 0.9em;
+        }
+    </style>
+    </head>
+    <body>
+        
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1><i class="bi bi-person-workspace"></i> Academia</h1>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="/" class="{{ 'active' if titulo == 'Início' else '' }}"><i class="bi bi-house-door-fill"></i> Início</a></li>
+                <li><a href="/alunos" class="{{ 'active' if titulo == 'Alunos' else '' }}"><i class="bi bi-people-fill"></i> Gerenciar Alunos</a></li>
+                <li><a href="/planos" class="{{ 'active' if titulo == 'Planos' else '' }}"><i class="bi bi-card-checklist"></i> Gerenciar Planos</a></li>
+            </ul>
+        </div>
+        
+        <div class="main-content">
+            <div class="container">
+                
+                {% if titulo == 'Início' %}
+                    <h1><i class="bi bi-house-door-fill"></i> Bem-vindo ao Sistema</h1>
+                    <p>Selecione um módulo na barra lateral para começar.</p>
+                
+                {% else %}
+                    <h1>{{ titulo }}</h1> 
+                    
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                      {% if messages %}
+                        {% for category, message in messages %}
+                          {% if category == 'error' %}
+                            <div class="msg-erro" id="id-mensagem-erro">
+                              {{ message }}
+                            </div>
+                          {% else %}
+                            <div class="msg-sucesso" id="id-mensagem-sucesso">
+                              {{ message }}
+                            </div>
+                          {% endif %}
+                        {% endfor %}
+                      {% endif %}
+                    {% endwith %}
+
+                    <h2><i class="bi bi-plus-circle-fill"></i> Cadastrar Novo {{ 'Aluno' if titulo == 'Alunos' else 'Plano' }}</h2>
+                    <form action="{{ form_action }}" method="POST">
+                        <div class="form-grid">
+                            {% for campo in campos_formulario %}
+                            <div>
+                                <label for="id-{{ campo.nome }}">{{ campo.label }}</label>
+                                {% if campo.tipo == 'select' %}
+                                    <select name="{{ campo.nome }}" id="id-{{ campo.nome }}">
+                                        {% for op in campo.opcoes %}
+                                        <option value="{{ op }}" {% if op == campo.get('selecionado') %}selected{% endif %}>{{ op }}</option>
+                                        {% endfor %}
+                                    </select>
+                                {% else %}
+                                    <input type="{{ campo.tipo }}" name="{{ campo.nome }}" id="id-{{ campo.nome }}" 
+                                           value="{{ campo.get('valor', '') }}" 
+                                           placeholder="{{ campo.get('placeholder', '') }}">
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <button type="submit" id="id-botao-salvar" style="margin-top: 20px;">
+                            <i class="bi bi-check-lg"></i> Salvar
+                        </button>
+                    </form>
+
+                    <h2><i class="bi bi-list-task"></i> Consultar {{ titulo }}</h2>
+                    
+                    {% if titulo == "Alunos" %}
+                    <form action="{{ url_for('crud_alunos') }}" method="GET" class="form-filtro">
+                        <input type="text" name="search_nome" placeholder="Filtrar por Nome..." value="{{ search_nome_value | default('') }}">
+                        <input type="text" name="search_cpf" placeholder="Filtrar por CPF..." value="{{ search_cpf_value | default('') }}">
+                        <button type="submit">Buscar</button>
+                        <a href="{{ url_for('crud_alunos') }}" class="btn btn-cancelar">Limpar</a>
+                    </form>
+                    {% elif titulo == "Planos" %}
+                    <form action="{{ url_for('crud_planos') }}" method="GET" class="form-filtro">
+                        <input type="text" name="search_nome_plano" placeholder="Filtrar por Nome do Plano..." value="{{ search_nome_plano_value | default('') }}">
+                        <select name="search_status">
+                            <option value="Todos" {% if search_status_value == 'Todos' %}selected{% endif %}>Todos os Status</option>
+                            <option value="Ativo" {% if search_status_value == 'Ativo' %}selected{% endif %}>Ativo</option>
+                            <option value="Inativo" {% if search_status_value == 'Inativo' %}selected{% endif %}>Inativo</option>
+                        </select>
+                        <button type="submit">Buscar</button>
+                        <a href="{{ url_for('crud_planos') }}" class="btn btn-cancelar">Limpar</a>
+                    </form>
+                    {% endif %}
+                    
+                    <table id="id-tabela-resultados">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                {% if titulo == "Alunos" %}
+                                    <th>Nome</th>
+                                    <th>CPF</th>
+                                {% elif titulo == "Planos" %}
+                                    <th>Plano</th>
+                                    <th>Status</th>
+                                {% endif %}
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for id, item in items.items() %}
+                            <tr>
+                                <td>{{ id }}</td>
+                                {% if titulo == "Alunos" %}
+                                    <td>{{ item['nome_completo'] }}</td>
+                                    <td>{{ item['cpf'] }}</td>
+                                {% elif titulo == "Planos" %}
+                                    <td>{{ item['nome_plano'] }}</td>
+                                    <td><span class="status-{{ item['status']|lower }}">{{ item['status'] }}</span></td>
+                                {% endif %}
+                                
+                                <td class="acoes">
+                                    {% if titulo == "Alunos" %}
+                                        <a href="/alunos/editar/{{ id }}" class="btn btn-editar" id="id-btn-editar-{{ id }}">
+                                            <i class="bi bi-pencil-fill"></i> Editar
+                                        </a>
+                                        <form action="/alunos/remover/{{ id }}" method="POST" style="margin:0;">
+                                            <button type="submit" class="btn btn-remover" id="id-btn-remover-{{ id }}">
+                                                <i class="bi bi-trash-fill"></i> Remover
+                                            </button>
+                                        </form>
+                                    {% elif titulo == "Planos" %}
+                                        <a href="/planos/editar/{{ id }}" class="btn btn-editar" id="id-btn-editar-{{ id }}">
+                                            <i class="bi bi-pencil-fill"></i> Editar
+                                        </a>
+                                        <form action="/planos/remover/{{ id }}" method="POST" style="margin:0;">
+                                            <button type="submit" class="btn btn-remover" id="id-btn-remover-{{ id }}">
+                                                <i class="bi bi-trash-fill"></i> Remover
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4">Nenhum item encontrado.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endif %}
+            </div>
+        </div>
+    </body>
+    </html>
+    
