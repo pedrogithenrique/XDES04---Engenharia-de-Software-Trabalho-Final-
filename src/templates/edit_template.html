@@ -12,7 +12,8 @@
             --sidebar-bg: #222831;
             --content-bg: #f4f7f6;
             --card-bg: #ffffff;
-            --primary-color: #007bff;
+            /* COR PRIMÁRIA ATUALIZADA */
+            --primary-color: #00897b; /* Era #007bff */
             --text-dark: #333;
             --text-light: #f0f0f0;
             --border-color: #e0e0e0;
@@ -50,6 +51,10 @@
             margin: 0;
             border: none;
             text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
         .sidebar-menu {
             list-style: none;
@@ -91,11 +96,25 @@
             padding: 20px;
         }
         
-        h1, h2 { 
+        /* NOVO: HIERARQUIA DE TÍTULOS */
+        h1 {
             color: var(--text-dark);
             border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 8px;
+            margin-top: 15px;
+            margin-bottom: 25px; /* Mais espaço após o título */
+            font-size: 2.0em; /* Maior */
+            font-weight: 700;
+            text-transform: none;
+        }
+        h2 { 
+            color: var(--text-dark);
+            border-bottom: 1px solid #ddd; /* Borda mais leve */
             padding-bottom: 5px;
-            margin-top: 20px;
+            margin-top: 30px; /* Mais espaço antes da seção */
+            margin-bottom: 20px;
+            font-size: 1.5em; /* Menor que h1 */
+            font-weight: 500;
             text-transform: none;
         }
         
@@ -108,9 +127,10 @@
             border: 1px solid var(--border-color);
         }
         
+        /* NOVO: FORM GRID RESPONSIVO */
         .form-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
         }
         
@@ -157,7 +177,7 @@
             display: inline-block;
         }
         button:hover, .btn:hover { 
-            background: #0056b3; 
+            background: #006a5f; /* Era #0056b3 */
         }
         
         .form-filtro {
@@ -207,17 +227,32 @@
         tr:hover {
             background-color: #f9f9f9;
         }
+
+        /* NOVO: CLASSES DE ALINHAMENTO DA TABELA */
+        th.col-id, td.col-id {
+            text-align: center;
+            width: 60px; /* Largura fixa para ID */
+        }
+        th.col-status, td.col-status {
+            text-align: center;
+            width: 120px;
+        }
+        th.col-acoes, td.col-acoes {
+            text-align: center;
+            width: 180px; /* Largura fixa para Ações */
+        }
         
         .acoes { 
             display: flex; 
             gap: 10px; 
+            justify-content: center; /* Centraliza botões */
         }
         .btn-editar { 
-            background: #ffc107; color: black; padding: 8px 12px;
+            background: #ffc107; color: black; padding: 6px 10px; font-size: 14px;
         }
         .btn-editar:hover { background: #e0a800; }
         .btn-remover { 
-            background: #dc3545; color: white; padding: 8px 12px;
+            background: #dc3545; color: white; padding: 6px 10px; font-size: 14px;
         }
         .btn-remover:hover { background: #c82333; }
         
@@ -265,33 +300,80 @@
         }
         .btn-cancelar:hover { background: #5a6268; }
         
+        /* STATUS TAGS ATUALIZADAS */
+        .status-ativo, .status-inativo, .status-cancelada {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: 0.85em;
+            display: inline-block; /* Permite centralização */
+        }
         .status-ativo {
             background-color: #d4edda;
             color: #155724;
-            padding: 5px 10px;
-            border-radius: 12px;
-            font-weight: 500;
-            font-size: 0.9em;
         }
         .status-inativo {
             background-color: #f8d7da;
             color: #721c24;
-            padding: 5px 10px;
-            border-radius: 12px;
-            font-weight: 500;
-            font-size: 0.9em;
+        }
+        .status-cancelada {
+            background-color: #e2e3e5;
+            color: #383d41;
+        }
+
+        /* CSS do Dashboard */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        .dashboard-card {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.08);
+        }
+        .dashboard-card .card-icon {
+            font-size: 3em; /* 48px */
+            color: var(--primary-color);
+        }
+        .dashboard-card .card-info h3 {
+            margin: 0;
+            font-size: 2.5em; /* 40px */
+            color: var(--text-dark);
+            /* NOVO: Reseta o H3 para não pegar estilo do h1/h2 */
+            border: none;
+            padding: 0;
+            margin: 0;
+        }
+        .dashboard-card .card-info p {
+            margin: 0;
+            font-size: 1.1em;
+            color: #666;
         }
     </style>
     </head>
     <body>
         <div class="sidebar">
             <div class="sidebar-header">
-                <h1><i class="bi bi-person-workspace"></i> Academia</h1>
+                <h1><i class="bi bi-barbell"></i> Academia</h1>
             </div>
             <ul class="sidebar-menu">
-                <li><a href="/"><i class="bi bi-house-door-fill"></i> Início</a></li>
+                <li><a href="/"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
                 <li><a href="/alunos" class="{{ 'active' if 'Aluno' in titulo else '' }}"><i class="bi bi-people-fill"></i> Gerenciar Alunos</a></li>
                 <li><a href="/planos" class="{{ 'active' if 'Plano' in titulo else '' }}"><i class="bi bi-card-checklist"></i> Gerenciar Planos</a></li>
+                <li><a href="/funcionarios" class="{{ 'active' if 'Funcionário' in titulo else '' }}"><i class="bi bi-person-badge"></i> Gerenciar Funcionários</a></li>
+                <li><a href="/matriculas" class="{{ 'active' if 'Matrícula' in titulo else '' }}"><i class="bi bi-journal-check"></i> Gerenciar Matrículas</a></li>
             </ul>
         </div>
         
@@ -300,25 +382,25 @@
                 <h1><i class="bi bi-pencil-square"></i> {{ titulo }}</h1>
                 
                 {% with messages = get_flashed_messages(with_categories=true) %}
-                  {% if messages %}
-                    {% for category, message in messages %}
-                      {% if category == 'error' %}
-                        <div class="msg-erro" id="id-mensagem-erro">
-                          {{ message }}
-                        </div>
-                      {% else %}
-                        <div class="msg-sucesso" id="id-mensagem-sucesso">
-                          {{ message }}
-                        </div>
-                      {% endif %}
-                    {% endfor %}
-                  {% endif %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            {% if category == 'error' %}
+                                <div class="msg-erro" id="id-mensagem-erro">
+                                    {{ message }}
+                                </div>
+                            {% else %}
+                                <div class="msg-sucesso" id="id-mensagem-sucesso">
+                                    {{ message }}
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
                 {% endwith %}
                 
                 <form action="{{ form_action }}" method="POST">
                     
                     {% for campo in campos_fixos %}
-                    <div class="campo-fixo">
+                    <div class="campo-fixo" style="margin-bottom: 20px;">
                         <label>{{ campo.label }}</label>
                         <span>{{ campo.valor }}</span>
                     </div>
@@ -328,6 +410,7 @@
                         {% for campo in campos_formulario %}
                         <div>
                             <label for="id-{{ campo.nome }}">{{ campo.label }}</label>
+                            
                             {% if campo.tipo == 'select' %}
                                 <select name="{{ campo.nome }}" id="id-{{ campo.nome }}">
                                     {% for op in campo.opcoes %}
@@ -337,6 +420,15 @@
                                     </option>
                                     {% endfor %}
                                 </select>
+                            
+                            {% elif campo.tipo == 'select_dinamico' %}
+                                <select name="{{ campo.nome }}" id="id-{{ campo.nome }}">
+                                    <option value="">Selecione...</option>
+                                    {% for op in campo.opcoes %}
+                                    <option value="{{ op.id }}" {% if op.id|string == campo.get('valor') %}selected{% endif %}>{{ op.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                                
                             {% else %}
                                 <input type="{{ campo.tipo }}" name="{{ campo.nome }}" id="id-{{ campo.nome }}" 
                                        value="{{ campo.get('valor', '') }}"
