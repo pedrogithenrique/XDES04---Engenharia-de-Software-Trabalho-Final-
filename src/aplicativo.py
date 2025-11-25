@@ -1,13 +1,14 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 import os
 import re
-from datetime import datetime
-from dateutil.relativedelta import relativedelta # Para calcular data de término
+from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta 
+from collections import defaultdict 
 
 app = Flask(__name__)
 app.secret_key = "secreto-academia"
 
-# --- BANCO DE DADOS EM MEMÓRIA (COM DADOS PRÉ-CADASTRADOS) ---
+# --- BANCO DE DADOS EM MEMÓRIA (COM 5+ DADOS PRÉ-CADASTRADOS) ---
 
 db_alunos = {
     1: {
@@ -25,9 +26,33 @@ db_alunos = {
         "email": "bruno.costa@email.com",
         "telefone": "(35) 92222-2222",
         "endereco": "Rua B, 20"
+    },
+    3: {
+        "nome_completo": "Cássia Torres",
+        "cpf": "333.333.333-33",
+        "data_nascimento": "1998-01-01",
+        "email": "cassia.torres@email.com",
+        "telefone": "(35) 93333-3333",
+        "endereco": "Av. Principal, 50"
+    },
+    4: {
+        "nome_completo": "Daniel Rocha",
+        "cpf": "444.444.444-44",
+        "data_nascimento": "2000-03-25",
+        "email": "daniel.rocha@email.com",
+        "telefone": "(35) 94444-4444",
+        "endereco": "Rua C, 15"
+    },
+    5: {
+        "nome_completo": "Erica Lima",
+        "cpf": "555.555.555-55",
+        "data_nascimento": "1992-11-10",
+        "email": "erica.lima@email.com",
+        "telefone": "(35) 95555-5555",
+        "endereco": "Rua D, 100"
     }
 }
-next_aluno_id = 3 # Inicia no próximo ID livre
+next_aluno_id = 6
 
 db_planos = {
     1: {
@@ -50,14 +75,28 @@ db_planos = {
         "valor_mensal": "89.90",
         "duracao_meses": "3",
         "status": "Inativo"
+    },
+    4: {
+        "nome_plano": "Plano Semestral",
+        "descricao": "Acesso a todas áreas, 6 meses",
+        "valor_mensal": "89.00",
+        "duracao_meses": "6",
+        "status": "Ativo"
+    },
+    5: {
+        "nome_plano": "Plano Trimestral Novo",
+        "descricao": "Acesso com desconto, 3 meses",
+        "valor_mensal": "95.00",
+        "duracao_meses": "3",
+        "status": "Ativo"
     }
 }
-next_plano_id = 4 # Inicia no próximo ID livre
+next_plano_id = 6
 
 db_funcionarios = {
     1: {
         "nome": "Carlos Gerente",
-        "cpf": "333.333.333-33",
+        "cpf": "111.111.111-11",
         "cargo": "Gerente",
         "data_admissao": "2020-01-10",
         "salario": "3500.00",
@@ -65,39 +104,165 @@ db_funcionarios = {
     },
     2: {
         "nome": "Debora Recepcionista",
-        "cpf": "444.444.444-44",
+        "cpf": "222.222.222-22",
         "cargo": "Recepcionista",
         "data_admissao": "2022-03-15",
         "salario": "1800.00",
         "contato": "(35) 94444-4444"
+    },
+    3: {
+        "nome": "Elias Técnico",
+        "cpf": "333.333.333-33",
+        "cargo": "Técnico de Manutenção",
+        "data_admissao": "2021-08-01",
+        "salario": "2200.00",
+        "contato": "elias.tec@academia.com"
+    },
+    4: {
+        "nome": "Fernanda Instrutora",
+        "cpf": "444.444.444-44",
+        "cargo": "Instrutor",
+        "data_admissao": "2023-05-20",
+        "salario": "2500.00",
+        "contato": "fe.inst@academia.com"
+    },
+    5: {
+        "nome": "Gustavo Técnico",
+        "cpf": "555.555.555-55",
+        "cargo": "Técnico de Manutenção",
+        "data_admissao": "2024-01-01",
+        "salario": "2300.00",
+        "contato": "gustavo.tec@academia.com"
     }
 }
-next_funcionario_id = 3 # Inicia no próximo ID livre
+next_funcionario_id = 6 
 
 db_matriculas = {
     1: {
-        "aluno_id": 1, # Ana da Silva
-        "plano_id": 2, # Plano Anual
-        "data_inicio": "2023-01-15",
-        "data_termino": "2024-01-15", # Calculado
-        "status": "Ativa"
+        "aluno_id": 1, 
+        "plano_id": 2, # Plano Anual (12m) - Ana
+        "data_inicio": "2024-01-15",
+        "data_termino": "2025-01-15", 
+        "status": "Ativa" 
     },
     2: {
-        "aluno_id": 2, # Bruno Costa
-        "plano_id": 1, # Plano Mensal
-        "data_inicio": "2023-10-01",
-        "data_termino": "2023-11-01", # Calculado
-        "status": "Inativa" # Já expirou
+        "aluno_id": 2, 
+        "plano_id": 1, # Plano Mensal (1m) - Bruno
+        "data_inicio": "2024-10-01",
+        "data_termino": "2024-11-01", 
+        "status": "Inativa" 
+    },
+    3: {
+        "aluno_id": 3, 
+        "plano_id": 4, # Plano Semestral (6m) - Cássia
+        "data_inicio": "2024-06-01",
+        "data_termino": "2024-12-01", 
+        "status": "Ativa" 
+    },
+    4: {
+        "aluno_id": 4, 
+        "plano_id": 5, # Plano Trimestral Novo (3m) - Daniel
+        "data_inicio": "2024-11-01",
+        "data_termino": "2025-02-01", 
+        "status": "Ativa" 
+    },
+    5: {
+        "aluno_id": 5, 
+        "plano_id": 1, # Plano Mensal (1m) - Erica
+        "data_inicio": "2024-11-20",
+        "data_termino": "2024-12-20", 
+        "status": "Ativa" 
     }
 }
-next_matricula_id = 3 # Inicia no próximo ID livre
+next_matricula_id = 6
 
+db_aparelhos = {
+    1: {
+        "nome_aparelho": "Esteira X3000",
+        "marca": "RunFast",
+        "data_compra": "2023-03-01",
+        "status": "Em uso"
+    },
+    2: {
+        "nome_aparelho": "Bicicleta Ergométrica S500",
+        "marca": "CycleFit",
+        "data_compra": "2024-01-20",
+        "status": "Em uso"
+    },
+    3: {
+        "nome_aparelho": "Leg Press 45",
+        "marca": "HeavyDuty",
+        "data_compra": "2022-06-10",
+        "status": "Em manutenção" # Ligado à Manutenção 1 (Em Aberto)
+    },
+    4: {
+        "nome_aparelho": "Máquina de Remada",
+        "marca": "ErgoRow",
+        "data_compra": "2024-05-01",
+        "status": "Em uso"
+    },
+    5: {
+        "nome_aparelho": "Halteres Ajustáveis",
+        "marca": "PowerSet",
+        "data_compra": "2024-08-15",
+        "status": "Em uso"
+    }
+}
+next_aparelho_id = 6
+
+db_manutencoes = {
+    1: {
+        "aparelho_id": 3, # Leg Press 45
+        "funcionario_id": 3, # Elias Técnico
+        "data_inicio": "2024-11-20",
+        "data_conclusao": "", 
+        "descricao_problema": "Ruído na polia principal.",
+        "custo": "150.50",
+        "criacao_timestamp": datetime.now() - timedelta(days=2) 
+    },
+    2: {
+        "aparelho_id": 1, # Esteira X3000
+        "funcionario_id": 5, # Gustavo Técnico
+        "data_inicio": "2024-11-25",
+        "data_conclusao": "2024-11-25", # Concluído
+        "descricao_problema": "Ajuste do sensor de velocidade.",
+        "custo": "25.00",
+        "criacao_timestamp": datetime.now() - timedelta(minutes=30) 
+    },
+    3: {
+        "aparelho_id": 4, # Máquina de Remada
+        "funcionario_id": 3, # Elias Técnico
+        "data_inicio": "2024-10-05",
+        "data_conclusao": "2024-10-06", 
+        "descricao_problema": "Lubrificação geral.",
+        "custo": "49.99",
+        "criacao_timestamp": datetime.now() - timedelta(days=40) 
+    },
+    4: {
+        "aparelho_id": 5, # Halteres
+        "funcionario_id": 5, # Gustavo Técnico
+        "data_inicio": "2024-11-10",
+        "data_conclusao": "2024-11-10", 
+        "descricao_problema": "Limpeza e substituição de peças.",
+        "custo": "75.00",
+        "criacao_timestamp": datetime.now() - timedelta(days=15) 
+    },
+    5: {
+        "aparelho_id": 2, # Bicicleta Ergométrica
+        "funcionario_id": 3, # Elias Técnico
+        "data_inicio": "2024-09-01",
+        "data_conclusao": "2024-09-02", 
+        "descricao_problema": "Troca de pneu.",
+        "custo": "120.00",
+        "criacao_timestamp": datetime.now() - timedelta(days=80) 
+    }
+}
+next_manutencao_id = 6
 
 # --- ROTA PRINCIPAL (DASHBOARD) ---
 
 @app.route('/')
 def index():
-    # Lógica do Dashboard
     total_alunos = len(db_alunos)
     total_planos_ativos = len([p for p in db_planos.values() if p['status'] == 'Ativo'])
     total_funcionarios = len(db_funcionarios)
@@ -112,7 +277,9 @@ def index():
     
     return render_template('crud_template.html', titulo="Início", stats=stats)
 
-# --- CRUD ALUNOS (MÓDULO 1) ---
+# *********************************
+# ROTAS ALUNOS (MÓDULO 1)
+# *********************************
 
 @app.route('/alunos', methods=['GET', 'POST'])
 def crud_alunos():
@@ -225,11 +392,11 @@ def editar_aluno_form(aluno_id):
         item=aluno,
         form_action=url_for('editar_aluno_salvar', aluno_id=aluno_id),
         campos_formulario=[
-            {'nome': 'nome_completo', 'label': 'Nome Completo*', 'tipo': 'text', 'valor': aluno['nome_completo'], 'placeholder': 'Ex: João da Silva'},
+            {'nome': 'nome_completo', 'label': 'Nome Completo*', 'tipo': 'text', 'valor': aluno['nome_completo']},
             {'nome': 'data_nascimento', 'label': 'Data de Nascimento', 'tipo': 'date', 'valor': aluno['data_nascimento']},
-            {'nome': 'email', 'label': 'E-mail*', 'tipo': 'email', 'valor': aluno['email'], 'placeholder': 'joao@email.com'},
-            {'nome': 'telefone', 'label': 'Telefone*', 'tipo': 'tel', 'valor': aluno['telefone'], 'placeholder': '(35) 99999-8888'},
-            {'nome': 'endereco', 'label': 'Endereço', 'tipo': 'text', 'valor': aluno['endereco'], 'placeholder': 'Rua Exemplo, 123'}
+            {'nome': 'email', 'label': 'E-mail*', 'tipo': 'email', 'valor': aluno['email']},
+            {'nome': 'telefone', 'label': 'Telefone*', 'tipo': 'tel', 'valor': aluno['telefone']},
+            {'nome': 'endereco', 'label': 'Endereço', 'tipo': 'text', 'valor': aluno['endereco']}
         ],
         campos_fixos=[
             {'label': 'CPF (Fixo)', 'valor': aluno['cpf']}
@@ -261,7 +428,9 @@ def editar_aluno_salvar(aluno_id):
     return redirect(url_for('crud_alunos'))
 
 
-# --- CRUD PLANOS (MÓDULO 2) ---
+# *********************************
+# ROTAS PLANOS (MÓDULO 2)
+# *********************************
 
 @app.route('/planos', methods=['GET', 'POST'])
 def crud_planos():
@@ -366,10 +535,10 @@ def editar_plano_form(plano_id):
         item=plano,
         form_action=url_for('editar_plano_salvar', plano_id=plano_id),
         campos_formulario=[
-            {'nome': 'nome_plano', 'label': 'Nome do Plano*', 'tipo': 'text', 'valor': plano['nome_plano'], 'placeholder': 'Ex: Plano Mensal'},
-            {'nome': 'descricao', 'label': 'Descrição', 'tipo': 'text', 'valor': plano['descricao'], 'placeholder': 'Acesso a todas as áreas'},
-            {'nome': 'valor_mensal', 'label': 'Valor Mensal (R$)*', 'tipo': 'text', 'valor': plano['valor_mensal'], 'placeholder': 'Ex: 99.90'},
-            {'nome': 'duracao_meses', 'label': 'Duração (Meses)*', 'tipo': 'number', 'valor': plano['duracao_meses'], 'placeholder': 'Ex: 12'},
+            {'nome': 'nome_plano', 'label': 'Nome do Plano*', 'tipo': 'text', 'valor': plano['nome_plano']},
+            {'nome': 'descricao', 'label': 'Descrição', 'tipo': 'text', 'valor': plano['descricao']},
+            {'nome': 'valor_mensal', 'label': 'Valor Mensal (R$)*', 'tipo': 'text', 'valor': plano['valor_mensal']},
+            {'nome': 'duracao_meses', 'label': 'Duração (Meses)*', 'tipo': 'number', 'valor': plano['duracao_meses']},
             {'nome': 'status', 'label': 'Status*', 'tipo': 'select', 'opcoes': ['Ativo', 'Inativo'], 'selecionado': plano['status']}
         ],
         campos_fixos=[],
@@ -399,7 +568,9 @@ def editar_plano_salvar(plano_id):
     flash('Plano atualizado com sucesso!', 'success')
     return redirect(url_for('crud_planos'))
 
-# --- CRUD FUNCIONÁRIOS (MÓDULO 3) ---
+# *********************************
+# ROTAS FUNCIONÁRIOS (MÓDULO 3)
+# *********************************
 
 @app.route('/funcionarios', methods=['GET', 'POST'])
 def crud_funcionarios():
@@ -486,8 +657,16 @@ def crud_funcionarios():
 
 @app.route('/funcionarios/remover/<int:funcionario_id>', methods=['POST'])
 def remover_funcionario(funcionario_id):
-    # [RFS12] A DRE pede verificação de registros. Por enquanto, faremos a remoção simples.
-    if funcionario_id in db_funcionarios:
+    # REGRA DE NEGÓCIO [RFS12]: Verificar associações com Manutenções
+    tem_manutencao = False
+    for manutencao in db_manutencoes.values():
+        if manutencao['funcionario_id'] == funcionario_id:
+            tem_manutencao = True
+            break
+            
+    if tem_manutencao:
+        flash('Erro: Funcionário está associado a registros de manutenção e não pode ser removido!', 'error')
+    elif funcionario_id in db_funcionarios:
         del db_funcionarios[funcionario_id]
         flash('Funcionário removido com sucesso!', 'success')
     else:
@@ -542,8 +721,305 @@ def editar_funcionario_salvar(funcionario_id):
     flash('Funcionário atualizado com sucesso!', 'success')
     return redirect(url_for('crud_funcionarios'))
 
+# *********************************
+# ROTAS APARELHOS (MÓDULO 4)
+# *********************************
 
-# --- CRUD MATRÍCULAS (MÓDULO 5) ---
+@app.route('/aparelhos', methods=['GET', 'POST'])
+def crud_aparelhos():
+    global next_aparelho_id
+    
+    # [RFS13] Tabela 10
+    campos_form_aparelho = [
+        {'nome': 'nome_aparelho', 'label': 'Nome do Aparelho*', 'tipo': 'text', 'placeholder': 'Ex: Esteira XPTO'},
+        {'nome': 'marca', 'label': 'Marca', 'tipo': 'text', 'placeholder': 'Ex: RunFast'},
+        {'nome': 'data_compra', 'label': 'Data da Compra', 'tipo': 'date', 'placeholder': ''},
+        {'nome': 'status', 'label': 'Status*', 'tipo': 'select', 'opcoes': ['Em uso', 'Em manutenção', 'Fora de serviço']}
+    ]
+    
+    if request.method == 'POST':
+        nome = request.form['nome_aparelho']
+        status = request.form['status']
+        
+        if not nome or not status:
+            flash('Erro: Nome do Aparelho e Status são obrigatórios!', 'error')
+            return redirect(url_for('crud_aparelhos'))
+
+        novo_aparelho = {
+            "nome_aparelho": nome,
+            "marca": request.form['marca'],
+            "data_compra": request.form['data_compra'],
+            "status": status
+        }
+        db_aparelhos[next_aparelho_id] = novo_aparelho
+        next_aparelho_id += 1
+        
+        flash('Aparelho cadastrado com sucesso!', 'success')
+        return redirect(url_for('crud_aparelhos'))
+
+    # [RFS14] Filtros
+    search_nome = request.args.get('search_nome', '')
+    search_status = request.args.get('search_status', 'Todos')
+    
+    aparelhos_filtrados = db_aparelhos
+    
+    if search_nome:
+        aparelhos_filtrados = {id: a for id, a in aparelhos_filtrados.items() 
+                            if search_nome.lower() in a['nome_aparelho'].lower()}
+    
+    if search_status != 'Todos':
+        aparelhos_filtrados = {id: a for id, a in aparelhos_filtrados.items() 
+                            if a['status'] == search_status}
+                            
+    return render_template('crud_template.html', 
+        titulo="Aparelhos", 
+        items=aparelhos_filtrados, 
+        form_action=url_for('crud_aparelhos'),
+        campos_formulario=campos_form_aparelho,
+        search_nome_value=search_nome,
+        search_status_value=search_status
+    )
+
+@app.route('/aparelhos/remover/<int:aparelho_id>', methods=['POST'])
+def remover_aparelho(aparelho_id):
+    # REGRA DE NEGÓCIO [RFS16]: Verificar Manutenções em aberto
+    em_manutencao = False
+    for manutencao in db_manutencoes.values():
+        if manutencao['aparelho_id'] == aparelho_id and manutencao['data_conclusao'] == "":
+            em_manutencao = True
+            break
+            
+    if em_manutencao:
+        flash('Erro: Aparelho possui manutenção em aberto e não pode ser excluído!', 'error')
+    elif aparelho_id in db_aparelhos:
+        del db_aparelhos[aparelho_id]
+        flash('Aparelho excluído com sucesso (baixa de patrimônio)!', 'success')
+    else:
+        flash('Aparelho não encontrado!', 'error')
+    return redirect(url_for('crud_aparelhos'))
+
+@app.route('/aparelhos/editar/<int:aparelho_id>', methods=['GET'])
+def editar_aparelho_form(aparelho_id):
+    if aparelho_id not in db_aparelhos:
+        flash('Aparelho não encontrado!', 'error')
+        return redirect(url_for('crud_aparelhos'))
+    
+    aparelho = db_aparelhos[aparelho_id]
+    return render_template('edit_template.html',
+        titulo=f"Editando Aparelho: {aparelho['nome_aparelho']}",
+        item=aparelho,
+        form_action=url_for('editar_aparelho_salvar', aparelho_id=aparelho_id),
+        campos_formulario=[ 
+            {'nome': 'nome_aparelho', 'label': 'Nome do Aparelho*', 'tipo': 'text', 'valor': aparelho['nome_aparelho']},
+            {'nome': 'marca', 'label': 'Marca', 'tipo': 'text', 'valor': aparelho['marca']},
+            {'nome': 'data_compra', 'label': 'Data da Compra', 'tipo': 'date', 'valor': aparelho['data_compra']},
+            # O Status só pode ser alterado manualmente com log, ou por RFS21/RFS23.
+            {'nome': 'status', 'label': 'Status*', 'tipo': 'select', 'opcoes': ['Em uso', 'Em manutenção', 'Fora de serviço'], 'selecionado': aparelho['status']}
+        ],
+        campos_fixos=[],
+        cancel_url=url_for('crud_aparelhos')
+    )
+
+@app.route('/aparelhos/editar/<int:aparelho_id>', methods=['POST'])
+def editar_aparelho_salvar(aparelho_id):
+    if aparelho_id not in db_aparelhos:
+        flash('Aparelho não encontrado!', 'error')
+        return redirect(url_for('crud_aparelhos'))
+    
+    nome = request.form['nome_aparelho']
+    status = request.form['status']
+    
+    if not nome or not status:
+        flash('Erro: Nome do Aparelho e Status são obrigatórios na edição!', 'error')
+        return redirect(url_for('editar_aparelho_form', aparelho_id=aparelho_id))
+    
+    db_aparelhos[aparelho_id]['nome_aparelho'] = nome
+    db_aparelhos[aparelho_id]['marca'] = request.form['marca']
+    db_aparelhos[aparelho_id]['data_compra'] = request.form['data_compra']
+    db_aparelhos[aparelho_id]['status'] = status
+    
+    # [RFS15] O log de alteração manual de status seria implementado aqui.
+    
+    flash('Aparelho atualizado com sucesso!', 'success')
+    return redirect(url_for('crud_aparelhos'))
+
+# *********************************
+# ROTAS MANUTENÇÕES (MÓDULO 6)
+# *********************************
+
+@app.route('/manutencoes', methods=['GET', 'POST'])
+def crud_manutencoes():
+    global next_manutencao_id
+    
+    # REGRA DE NEGÓCIO [RFS21]: Filtra funcionários APENAS para Técnico de Manutenção
+    funcionarios_validos = [{'id': id, 'nome': f['nome']} 
+                            for id, f in db_funcionarios.items() 
+                            if f['cargo'] == 'Técnico de Manutenção'] # ESTREITO PARA APENAS TÉCNICO
+                            
+    aparelhos_select = [{'id': id, 'nome': a['nome_aparelho']} 
+                        for id, a in db_aparelhos.items()]
+
+    # [RFS21] Tabela 16
+    campos_form_manutencao = [
+        {'nome': 'aparelho_id', 'label': 'Aparelho*', 'tipo': 'select_dinamico', 'opcoes': aparelhos_select},
+        {'nome': 'funcionario_id', 'label': 'Funcionário Responsável*', 'tipo': 'select_dinamico', 'opcoes': funcionarios_validos},
+        {'nome': 'data_inicio', 'label': 'Data de Início*', 'tipo': 'date'},
+        {'nome': 'descricao_problema', 'label': 'Descrição do Problema*', 'tipo': 'text', 'placeholder': 'Ex: Ruído no motor, correia gasta.'},
+        {'nome': 'custo', 'label': 'Custo (R$)*', 'tipo': 'text', 'placeholder': 'Ex: 50.00 ou 0.00'},
+    ]
+    
+    if request.method == 'POST':
+        aparelho_id = int(request.form['aparelho_id'])
+        funcionario_id = int(request.form['funcionario_id'])
+        data_inicio = request.form['data_inicio']
+        descricao = request.form['descricao_problema']
+        custo = request.form['custo']
+        
+        if not aparelho_id or not funcionario_id or not data_inicio or not descricao or not custo:
+            flash('Erro: Todos os campos com * são obrigatórios!', 'error')
+            return redirect(url_for('crud_manutencoes'))
+            
+        # REGRA DE NEGÓCIO [RFS21]: Alterar status do Aparelho para "Em manutenção"
+        if aparelho_id in db_aparelhos:
+            db_aparelhos[aparelho_id]['status'] = 'Em manutenção'
+
+        nova_manutencao = {
+            "aparelho_id": aparelho_id,
+            "funcionario_id": funcionario_id,
+            "data_inicio": data_inicio,
+            "data_conclusao": "", # Inicia em aberto
+            "descricao_problema": descricao,
+            "custo": custo,
+            "criacao_timestamp": datetime.now() # Usado para a regra de exclusão [RFS24]
+        }
+        db_manutencoes[next_manutencao_id] = nova_manutencao
+        next_manutencao_id += 1
+        
+        flash('Manutenção registrada! Status do aparelho alterado para "Em manutenção".', 'success')
+        return redirect(url_for('crud_manutencoes'))
+
+    # [RFS22] Filtros
+    search_aparelho_id = request.args.get('search_aparelho_id', '')
+    search_funcionario_id = request.args.get('search_funcionario_id', '')
+    
+    manutencoes_filtradas = db_manutencoes
+    
+    if search_aparelho_id:
+        manutencoes_filtradas = {id: m for id, m in manutencoes_filtradas.items() 
+                                 if m['aparelho_id'] == int(search_aparelho_id)}
+    if search_funcionario_id:
+        manutencoes_filtradas = {id: m for id, m in manutencoes_filtradas.items() 
+                                 if m['funcionario_id'] == int(search_funcionario_id)}
+
+    # Enriquecer dados para exibição na tabela
+    items_para_template = {}
+    for id, manutencao in manutencoes_filtradas.items():
+        aparelho_nome = db_aparelhos.get(manutencao['aparelho_id'], {}).get('nome_aparelho', 'APARELHO REMOVIDO')
+        funcionario_nome = db_funcionarios.get(manutencao['funcionario_id'], {}).get('nome', 'FUNCIONÁRIO REMOVIDO')
+        items_para_template[id] = {
+            **manutencao, 
+            'aparelho_nome': aparelho_nome,
+            'funcionario_nome': funcionario_nome,
+            'status': 'Concluída' if manutencao['data_conclusao'] else 'Em Aberto'
+        }
+                            
+    return render_template('crud_template.html', 
+        titulo="Manutenções", 
+        items=items_para_template, 
+        form_action=url_for('crud_manutencoes'),
+        campos_formulario=campos_form_manutencao,
+        aparelhos_filtro=aparelhos_select,
+        funcionarios_filtro=funcionarios_validos,
+        search_aparelho_id_value=search_aparelho_id,
+        search_funcionario_id_value=search_funcionario_id,
+    )
+
+@app.route('/manutencoes/remover/<int:manutencao_id>', methods=['POST'])
+def remover_manutencao(manutencao_id):
+    # REGRA DE NEGÓCIO [RFS24]: Exclusão só é permitida se criada nas últimas 24 horas
+    if manutencao_id not in db_manutencoes:
+        flash('Manutenção não encontrada!', 'error')
+        return redirect(url_for('crud_manutencoes'))
+        
+    manutencao = db_manutencoes[manutencao_id]
+    tempo_limite = datetime.now() - timedelta(hours=24)
+
+    if manutencao['criacao_timestamp'] < tempo_limite:
+        flash('Erro: A exclusão só é permitida para registros criados nas últimas 24 horas.', 'error')
+    else:
+        # Se excluída, o status do aparelho precisa voltar para 'Em uso', se não houver outra em aberto
+        aparelho_id = manutencao['aparelho_id']
+        del db_manutencoes[manutencao_id]
+        
+        # Lógica simplificada: Se o status do aparelho estava 'Em manutenção', presumimos que foi por essa.
+        if db_aparelhos.get(aparelho_id, {}).get('status') == 'Em manutenção':
+             db_aparelhos[aparelho_id]['status'] = 'Em uso'
+        
+        flash('Manutenção removida com sucesso! (Dentro do período de 24h)', 'success')
+        
+    return redirect(url_for('crud_manutencoes'))
+
+@app.route('/manutencoes/editar/<int:manutencao_id>', methods=['GET'])
+def editar_manutencao_form(manutencao_id):
+    if manutencao_id not in db_manutencoes:
+        flash('Manutenção não encontrada!', 'error')
+        return redirect(url_for('crud_manutencoes'))
+    
+    manutencao = db_manutencoes[manutencao_id]
+    
+    aparelho_nome = db_aparelhos.get(manutencao['aparelho_id'], {}).get('nome_aparelho', 'REMOVIDO')
+    funcionario_nome = db_funcionarios.get(manutencao['funcionario_id'], {}).get('nome', 'REMOVIDO')
+
+    return render_template('edit_template.html',
+        titulo=f"Editando Manutenção: {aparelho_nome}",
+        item=manutencao,
+        form_action=url_for('editar_manutencao_salvar', manutencao_id=manutencao_id),
+        # [RFS23] Data de Conclusão é o campo chave na edição
+        campos_formulario=[
+            {'nome': 'data_conclusao', 'label': 'Data de Conclusão', 'tipo': 'date', 'valor': manutencao['data_conclusao']},
+            {'nome': 'custo', 'label': 'Custo (R$)*', 'tipo': 'text', 'valor': manutencao['custo']},
+            {'nome': 'descricao_problema', 'label': 'Descrição do Problema*', 'tipo': 'text', 'valor': manutencao['descricao_problema']},
+        ],
+        campos_fixos=[
+            {'label': 'Aparelho (Fixo)', 'valor': aparelho_nome},
+            {'label': 'Funcionário (Fixo)', 'valor': funcionario_nome},
+            {'label': 'Data de Início', 'valor': manutencao['data_inicio']}
+        ],
+        cancel_url=url_for('crud_manutencoes')
+    )
+
+@app.route('/manutencoes/editar/<int:manutencao_id>', methods=['POST'])
+def editar_manutencao_salvar(manutencao_id):
+    if manutencao_id not in db_manutencoes:
+        flash('Manutenção não encontrada!', 'error')
+        return redirect(url_for('crud_manutencoes'))
+        
+    manutencao = db_manutencoes[manutencao_id]
+    data_conclusao = request.form['data_conclusao']
+    
+    if not data_conclusao and manutencao['data_conclusao']:
+        flash('Erro: Não é permitido remover a data de conclusão após preenchimento.', 'error')
+        return redirect(url_for('editar_manutencao_form', manutencao_id=manutencao_id))
+
+    # Se a data de conclusão foi preenchida ou alterada, atualiza o status do aparelho
+    if data_conclusao and data_conclusao != manutencao['data_conclusao']:
+        # REGRA DE NEGÓCIO [RFS23]: Alterar Status do Aparelho para "Em uso"
+        aparelho_id = manutencao['aparelho_id']
+        if aparelho_id in db_aparelhos:
+            db_aparelhos[aparelho_id]['status'] = 'Em uso'
+            flash(f"Status do aparelho '{db_aparelhos[aparelho_id]['nome_aparelho']}' alterado para 'Em uso'.", 'success')
+            
+    manutencao['data_conclusao'] = data_conclusao
+    manutencao['custo'] = request.form['custo']
+    manutencao['descricao_problema'] = request.form['descricao_problema']
+    
+    flash('Manutenção atualizada com sucesso!', 'success')
+    return redirect(url_for('crud_manutencoes'))
+
+
+# *********************************
+# ROTAS MATRÍCULAS (MÓDULO 5)
+# *********************************
 
 @app.route('/matriculas', methods=['GET', 'POST'])
 def crud_matriculas():
@@ -680,7 +1156,6 @@ def editar_matricula_form(matricula_id):
             {'nome': 'data_termino', 'label': 'Data de Término (auto)', 'tipo': 'date', 'valor': matricula['data_termino']},
             {'nome': 'status', 'label': 'Status*', 'tipo': 'select', 'opcoes': ['Ativa', 'Inativa', 'Cancelada'], 'selecionado': matricula['status']}
         ],
-        # [RFS19] Aluno e Plano não podem ser alterados
         campos_fixos=[
             {'label': 'Aluno (Fixo)', 'valor': aluno_nome},
             {'label': 'Plano (Fixo)', 'valor': plano_nome}
@@ -734,6 +1209,171 @@ def editar_matricula_salvar(matricula_id):
     flash('Matrícula atualizada com sucesso!', 'success')
     return redirect(url_for('crud_matriculas'))
 
+# *********************************
+# ROTAS RELATÓRIOS (MÓDULO 9)
+# *********************************
+
+# --- ROTA JSON DE DADOS (USADA PELO JS NO FRONTEND) ---
+@app.route('/relatorios/api/alunos_ativos', methods=['GET'])
+def relatorio_alunos_ativos_json():
+    # [RFS25]
+    matriculas_ativas = [m for m in db_matriculas.values() if m['status'] == 'Ativa']
+    contagem_por_plano = defaultdict(int)
+    for m in matriculas_ativas:
+        plano_id = m['plano_id']
+        plano_nome = db_planos.get(plano_id, {}).get('nome_plano', 'Plano Desconhecido')
+        contagem_por_plano[plano_nome] += 1
+        
+    labels = list(contagem_por_plano.keys())
+    data = list(contagem_por_plano.values())
+    
+    return jsonify(labels=labels, data=data, tipo_grafico='bar')
+
+@app.route('/relatorios/api/faturamento', methods=['GET'])
+def relatorio_faturamento_json():
+    # [RFS26]
+    faturamento_por_plano = defaultdict(float)
+    
+    for m in db_matriculas.values():
+        plano_id = m['plano_id']
+        plano = db_planos.get(plano_id)
+        if plano:
+            try:
+                valor_mensal = float(plano['valor_mensal'])
+                duracao = int(plano['duracao_meses'])
+                faturamento = valor_mensal * duracao
+                plano_nome = plano['nome_plano']
+                faturamento_por_plano[plano_nome] += faturamento
+            except ValueError:
+                pass
+
+    labels = list(faturamento_por_plano.keys())
+    data = list(faturamento_por_plano.values())
+    
+    return jsonify(labels=labels, data=data, tipo_grafico='bar')
+
+@app.route('/relatorios/api/manutencoes', methods=['GET'])
+def relatorio_manutencoes_json():
+    # [RFS27]
+    custos_por_funcionario = defaultdict(lambda: {"Custo Total": 0.0, "Contagem": 0})
+    
+    for m in db_manutencoes.values():
+        funcionario_id = m['funcionario_id']
+        funcionario_nome = db_funcionarios.get(funcionario_id, {}).get('nome', 'Funcionário Desconhecido')
+        
+        try:
+            custo = float(m['custo'])
+            custos_por_funcionario[funcionario_nome]["Custo Total"] += custo
+            custos_por_funcionario[funcionario_nome]["Contagem"] += 1
+        except ValueError:
+            pass
+
+    labels = list(custos_por_funcionario.keys())
+    custos = [data['Custo Total'] for data in custos_por_funcionario.values()]
+    contagem = [data['Contagem'] for data in custos_por_funcionario.values()]
+    
+    return jsonify(labels=labels, custos=custos, contagem=contagem, tipo_grafico='combinado')
+
+
+@app.route('/relatorios', methods=['GET'])
+def relatorios():
+    # Estrutura para os links de relatórios
+    relatorios_disponiveis = [
+        {'id': 'alunos_ativos', 'nome': 'Alunos Ativos por Plano', 'url': url_for('relatorio_alunos_ativos')},
+        {'id': 'faturamento', 'nome': 'Faturamento por Plano', 'url': url_for('relatorio_faturamento')},
+        {'id': 'manutencoes', 'nome': 'Manutenções e Custos', 'url': url_for('relatorio_manutencoes')},
+    ]
+    
+    return render_template('relatorios_template.html', 
+        titulo="Relatórios", 
+        relatorios=relatorios_disponiveis
+    )
+
+@app.route('/relatorios/alunos_ativos', methods=['GET'])
+def relatorio_alunos_ativos():
+    # [RFS25]
+    
+    matriculas_ativas = [m for m in db_matriculas.values() if m['status'] == 'Ativa']
+    contagem_por_plano = defaultdict(int)
+    for m in matriculas_ativas:
+        plano_id = m['plano_id']
+        plano_nome = db_planos.get(plano_id, {}).get('nome_plano', 'Plano Desconhecido')
+        contagem_por_plano[plano_nome] += 1
+        
+    dados_tabela = [{"Plano": plano, "Total": count} for plano, count in contagem_por_plano.items()]
+    total_geral = len(matriculas_ativas)
+
+    return render_template('relatorio_detalhe.html',
+        titulo="Relatório de Alunos Ativos por Plano",
+        descricao="Contagem de alunos com matrículas ativas, agrupados por plano (Simulação).",
+        tipo_grafico='bar', 
+        endpoint_api=url_for('relatorio_alunos_ativos_json'),
+        dados=dados_tabela, 
+        total_geral=f"Total de Alunos Ativos: {total_geral}"
+    )
+    
+@app.route('/relatorios/faturamento', methods=['GET'])
+def relatorio_faturamento():
+    # [RFS26]
+    
+    faturamento_por_plano = defaultdict(float)
+    
+    for m in db_matriculas.values():
+        plano_id = m['plano_id']
+        plano = db_planos.get(plano_id)
+        if plano:
+            try:
+                valor_mensal = float(plano['valor_mensal'])
+                duracao = int(plano['duracao_meses'])
+                faturamento = valor_mensal * duracao
+                plano_nome = plano['nome_plano']
+                faturamento_por_plano[plano_nome] += faturamento
+            except ValueError:
+                pass
+
+    dados_tabela = [{"Plano": plano, "Valor Total (R$)": f"R$ {valor:.2f}", "Valor_RAW": valor} 
+                     for plano, valor in faturamento_por_plano.items()]
+    total_geral = sum(item['Valor_RAW'] for item in dados_tabela)
+
+    return render_template('relatorio_detalhe.html',
+        titulo="Relatório de Faturamento (Total Bruto)",
+        descricao="Faturamento bruto simulado com base nas matrículas (Valor Mensal * Duração).",
+        dados=dados_tabela,
+        tipo_grafico='bar', 
+        endpoint_api=url_for('relatorio_faturamento_json'),
+        total_geral=f"Valor Total Gerado: R$ {total_geral:.2f}"
+    )
+
+@app.route('/relatorios/manutencoes', methods=['GET'])
+def relatorio_manutencoes():
+    # [RFS27]
+    
+    custos_por_funcionario = defaultdict(lambda: {"Custo Total": 0.0, "Contagem": 0})
+    
+    for m in db_manutencoes.values():
+        funcionario_id = m['funcionario_id']
+        funcionario_nome = db_funcionarios.get(funcionario_id, {}).get('nome', 'Funcionário Desconhecido')
+        
+        try:
+            custo = float(m['custo'])
+            custos_por_funcionario[funcionario_nome]["Custo Total"] += custo
+            custos_por_funcionario[funcionario_nome]["Contagem"] += 1
+        except ValueError:
+            pass
+
+    dados_tabela = [{"Funcionário": nome, "Custo Total (R$)": f"R$ {data['Custo Total']:.2f}", "Contagem": data['Contagem']} 
+                     for nome, data in custos_por_funcionario.items()]
+    
+    total_geral_custo = sum(float(m['custo']) for m in db_manutencoes.values() if m['custo'])
+
+    return render_template('relatorio_detalhe.html',
+        titulo="Relatório de Custos e Frequência de Manutenções",
+        descricao="Custo total e número de manutenções agrupadas por Funcionário Responsável.",
+        dados=dados_tabela,
+        tipo_grafico='combinado', 
+        endpoint_api=url_for('relatorio_manutencoes_json'),
+        total_geral=f"Custo Total: R$ {total_geral_custo:.2f} | Contagem Total: {len(db_manutencoes)}"
+    )
 
 # --- INICIALIZAÇÃO E ARQUIVOS HTML ---
 
@@ -747,8 +1387,7 @@ if __name__ == '__main__':
             --sidebar-bg: #222831;
             --content-bg: #f4f7f6;
             --card-bg: #ffffff;
-            /* COR PRIMÁRIA ATUALIZADA */
-            --primary-color: #00897b; /* Era #007bff */
+            --primary-color: #00897b; 
             --text-dark: #333;
             --text-light: #f0f0f0;
             --border-color: #e0e0e0;
@@ -831,24 +1470,24 @@ if __name__ == '__main__':
             padding: 20px;
         }
         
-        /* NOVO: HIERARQUIA DE TÍTULOS */
+        /* HIERARQUIA DE TÍTULOS */
         h1 {
             color: var(--text-dark);
             border-bottom: 2px solid var(--primary-color);
             padding-bottom: 8px;
             margin-top: 15px;
-            margin-bottom: 25px; /* Mais espaço após o título */
-            font-size: 2.0em; /* Maior */
+            margin-bottom: 25px; 
+            font-size: 2.0em; 
             font-weight: 700;
             text-transform: none;
         }
         h2 { 
             color: var(--text-dark);
-            border-bottom: 1px solid #ddd; /* Borda mais leve */
+            border-bottom: 1px solid #ddd; 
             padding-bottom: 5px;
-            margin-top: 30px; /* Mais espaço antes da seção */
+            margin-top: 30px; 
             margin-bottom: 20px;
-            font-size: 1.5em; /* Menor que h1 */
+            font-size: 1.5em; 
             font-weight: 500;
             text-transform: none;
         }
@@ -862,7 +1501,7 @@ if __name__ == '__main__':
             border: 1px solid var(--border-color);
         }
         
-        /* NOVO: FORM GRID RESPONSIVO */
+        /* FORM GRID RESPONSIVO */
         .form-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -912,7 +1551,7 @@ if __name__ == '__main__':
             display: inline-block;
         }
         button:hover, .btn:hover { 
-            background: #006a5f; /* Era #0056b3 */
+            background: #006a5f; 
         }
         
         .form-filtro {
@@ -963,10 +1602,10 @@ if __name__ == '__main__':
             background-color: #f9f9f9;
         }
 
-        /* NOVO: CLASSES DE ALINHAMENTO DA TABELA */
+        /* CLASSES DE ALINHAMENTO DA TABELA */
         th.col-id, td.col-id {
             text-align: center;
-            width: 60px; /* Largura fixa para ID */
+            width: 60px; 
         }
         th.col-status, td.col-status {
             text-align: center;
@@ -974,13 +1613,13 @@ if __name__ == '__main__':
         }
         th.col-acoes, td.col-acoes {
             text-align: center;
-            width: 180px; /* Largura fixa para Ações */
+            width: 180px; 
         }
         
         .acoes { 
             display: flex; 
             gap: 10px; 
-            justify-content: center; /* Centraliza botões */
+            justify-content: center; 
         }
         .btn-editar { 
             background: #ffc107; color: black; padding: 6px 10px; font-size: 14px;
@@ -1008,7 +1647,7 @@ if __name__ == '__main__':
         .msg-erro {
             background: #f8d7da;
             color: #721c24;
-            padding: 15px;
+            padding: 15px; 
             border-radius: 4px;
             margin-bottom: 20px;
             border: 1px solid #f5c6cb;
@@ -1036,24 +1675,24 @@ if __name__ == '__main__':
         .btn-cancelar:hover { background: #5a6268; }
         
         /* STATUS TAGS ATUALIZADAS */
-        .status-ativo, .status-inativo, .status-cancelada {
+        .status-ativo, .status-inativo, .status-cancelada, .status-em-uso, .status-em-manutencao, .status-fora-de-servico, .status-em-aberto, .status-concluída {
             padding: 4px 10px;
             border-radius: 12px;
             font-weight: 500;
             font-size: 0.85em;
-            display: inline-block; /* Permite centralização */
+            display: inline-block; 
         }
-        .status-ativo {
+        .status-ativo, .status-em-uso, .status-concluída {
             background-color: #d4edda;
             color: #155724;
         }
-        .status-inativo {
+        .status-inativo, .status-fora-de-servico {
             background-color: #f8d7da;
             color: #721c24;
         }
-        .status-cancelada {
-            background-color: #e2e3e5;
-            color: #383d41;
+        .status-cancelada, .status-em-manutencao, .status-em-aberto {
+            background-color: #ffe599;
+            color: #664d03;
         }
 
         /* CSS do Dashboard */
@@ -1079,14 +1718,13 @@ if __name__ == '__main__':
             box-shadow: 0 8px 16px rgba(0,0,0,0.08);
         }
         .dashboard-card .card-icon {
-            font-size: 3em; /* 48px */
+            font-size: 3em; 
             color: var(--primary-color);
         }
         .dashboard-card .card-info h3 {
             margin: 0;
-            font-size: 2.5em; /* 40px */
+            font-size: 2.5em; 
             color: var(--text-dark);
-            /* NOVO: Reseta o H3 para não pegar estilo do h1/h2 */
             border: none;
             padding: 0;
             margin: 0;
@@ -1099,13 +1737,13 @@ if __name__ == '__main__':
     """
 
     # --- ARQUIVO HTML: crud_template.html (MODIFICADO) ---
-    # Adicionadas classes .col-id, .col-status, .col-acoes
     html_crud_template = """
     <!DOCTYPE html>
     <html lang="pt-br">
     <head>
         <meta charset="UTF-8">
         <title>Academia - {{ titulo }}</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
         <style>__CSS_PLACEHOLDER__</style>
     </head>
     <body>
@@ -1120,6 +1758,9 @@ if __name__ == '__main__':
                 <li><a href="/planos" class="{{ 'active' if titulo == 'Planos' else '' }}"><i class="bi bi-card-checklist"></i> Gerenciar Planos</a></li>
                 <li><a href="/funcionarios" class="{{ 'active' if titulo == 'Funcionários' else '' }}"><i class="bi bi-person-badge"></i> Gerenciar Funcionários</a></li>
                 <li><a href="/matriculas" class="{{ 'active' if titulo == 'Matrículas' else '' }}"><i class="bi bi-journal-check"></i> Gerenciar Matrículas</a></li>
+                <li><a href="/aparelhos" class="{{ 'active' if titulo == 'Aparelhos' else '' }}"><i class="bi bi-gear-wide-connected"></i> Gerenciar Aparelhos</a></li>
+                <li><a href="/manutencoes" class="{{ 'active' if titulo == 'Manutenções' else '' }}"><i class="bi bi-tools"></i> Gerenciar Manutenções</a></li>
+                <li><a href="/relatorios" class="{{ 'active' if titulo == 'Relatórios' else '' }}"><i class="bi bi-bar-chart-line-fill"></i> Relatórios</a></li>
             </ul>
         </div>
         
@@ -1184,6 +1825,8 @@ if __name__ == '__main__':
                         {% if titulo == 'Alunos' %} Aluno
                         {% elif titulo == 'Planos' %} Plano
                         {% elif titulo == 'Funcionários' %} Funcionário
+                        {% elif titulo == 'Aparelhos' %} Aparelho
+                        {% elif titulo == 'Manutenções' %} Manutenção
                         {% elif titulo == 'Matrículas' %} Matrícula
                         {% endif %}
                     </h2>
@@ -1259,6 +1902,37 @@ if __name__ == '__main__':
                         <a href="{{ url_for('crud_funcionarios') }}" class="btn btn-cancelar">Limpar</a>
                     </form>
                     
+                    {% elif titulo == "Aparelhos" %}
+                    <form action="{{ url_for('crud_aparelhos') }}" method="GET" class="form-filtro">
+                        <input type="text" name="search_nome" placeholder="Filtrar por Nome..." value="{{ search_nome_value | default('') }}">
+                        <select name="search_status">
+                            <option value="Todos" {% if search_status_value == 'Todos' %}selected{% endif %}>Todos os Status</option>
+                            <option value="Em uso" {% if search_status_value == 'Em uso' %}selected{% endif %}>Em uso</option>
+                            <option value="Em manutenção" {% if search_status_value == 'Em manutenção' %}selected{% endif %}>Em manutenção</option>
+                            <option value="Fora de serviço" {% if search_status_value == 'Fora de serviço' %}selected{% endif %}>Fora de serviço</option>
+                        </select>
+                        <button type="submit">Buscar</button>
+                        <a href="{{ url_for('crud_aparelhos') }}" class="btn btn-cancelar">Limpar</a>
+                    </form>
+                    
+                    {% elif titulo == "Manutenções" %}
+                    <form action="{{ url_for('crud_manutencoes') }}" method="GET" class="form-filtro">
+                        <select name="search_aparelho_id">
+                            <option value="">Todos os Aparelhos</option>
+                            {% for aparelho in aparelhos_filtro %}
+                            <option value="{{ aparelho.id }}" {% if aparelho.id|string == search_aparelho_id_value %}selected{% endif %}>{{ aparelho.nome }}</option>
+                            {% endfor %}
+                        </select>
+                        <select name="search_funcionario_id">
+                            <option value="">Todos os Técnicos</option>
+                            {% for func in funcionarios_filtro %}
+                            <option value="{{ func.id }}" {% if func.id|string == search_funcionario_id_value %}selected{% endif %}>{{ func.nome }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit">Buscar</button>
+                        <a href="{{ url_for('crud_manutencoes') }}" class="btn btn-cancelar">Limpar</a>
+                    </form>
+
                     {% elif titulo == "Matrículas" %}
                     <form action="{{ url_for('crud_matriculas') }}" method="GET" class="form-filtro">
                         <select name="search_aluno_id">
@@ -1282,9 +1956,17 @@ if __name__ == '__main__':
                         <button type="submit">Buscar</button>
                         <a href="{{ url_for('crud_matriculas') }}" class="btn btn-cancelar">Limpar</a>
                     </form>
+                    {% elif titulo == "Relatórios" %}
+                        <p>Selecione um relatório:</p>
+                        <ul>
+                        {% for rel in relatorios %}
+                            <li><a href="{{ rel.url }}" class="btn" style="margin: 5px 0;"><i class="bi bi-eye-fill"></i> Visualizar {{ rel.nome }}</a></li>
+                        {% endfor %}
+                        </ul>
                     {% endif %}
                     
                     
+                    {% if titulo != "Relatórios" %}
                     <table id="id-tabela-resultados">
                         <thead>
                             <tr>
@@ -1306,6 +1988,18 @@ if __name__ == '__main__':
                                     <th>CPF</th>
                                     <th>Cargo</th>
                                     <th>Contato</th>
+                                {% elif titulo == "Aparelhos" %}
+                                    <th class="col-id">ID</th>
+                                    <th>Aparelho</th>
+                                    <th>Marca</th>
+                                    <th class="col-status">Status</th>
+                                {% elif titulo == "Manutenções" %}
+                                    <th class="col-id">ID</th>
+                                    <th>Aparelho</th>
+                                    <th>Técnico</th>
+                                    <th>Início</th>
+                                    <th>Término</th>
+                                    <th class="col-status">Status</th>
                                 {% elif titulo == "Matrículas" %}
                                     <th class="col-id">ID</th>
                                     <th>Aluno</th>
@@ -1341,6 +2035,20 @@ if __name__ == '__main__':
                                     <td>{{ item['cargo'] }}</td>
                                     <td>{{ item['contato'] }}</td>
                                     
+                                {% elif titulo == "Aparelhos" %}
+                                    <td class="col-id">{{ id }}</td>
+                                    <td>{{ item['nome_aparelho'] }}</td>
+                                    <td>{{ item['marca'] }}</td>
+                                    <td class="col-status"><span class="status-{{ item['status']|lower|replace(' ', '-') }}">{{ item['status'] }}</span></td>
+                                    
+                                {% elif titulo == "Manutenções" %}
+                                    <td class="col-id">{{ id }}</td>
+                                    <td>{{ item['aparelho_nome'] }}</td>
+                                    <td>{{ item['funcionario_nome'] }}</td>
+                                    <td>{{ item['data_inicio'] }}</td>
+                                    <td>{{ item['data_conclusao'] if item['data_conclusao'] else 'Em Aberto' }}</td>
+                                    <td class="col-status"><span class="status-{{ item['status']|lower|replace(' ', '-') }}">{{ item['status'] }}</span></td>
+
                                 {% elif titulo == "Matrículas" %}
                                     <td class="col-id">{{ id }}</td>
                                     <td>{{ item['aluno_nome'] }}</td>
@@ -1378,6 +2086,24 @@ if __name__ == '__main__':
                                                 <i class="bi bi-trash-fill"></i> Remover
                                             </button>
                                         </form>
+                                    {% elif titulo == "Aparelhos" %}
+                                        <a href="/aparelhos/editar/{{ id }}" class="btn btn-editar" id="id-btn-editar-{{ id }}">
+                                            <i class="bi bi-pencil-fill"></i> Editar
+                                        </a>
+                                        <form action="/aparelhos/remover/{{ id }}" method="POST" style="margin:0;">
+                                            <button type="submit" class="btn btn-remover" id="id-btn-remover-{{ id }}">
+                                                <i class="bi bi-trash-fill"></i> Remover
+                                            </button>
+                                        </form>
+                                    {% elif titulo == "Manutenções" %}
+                                        <a href="/manutencoes/editar/{{ id }}" class="btn btn-editar" id="id-btn-editar-{{ id }}">
+                                            <i class="bi bi-pencil-fill"></i> Concluir/Editar
+                                        </a>
+                                        <form action="/manutencoes/remover/{{ id }}" method="POST" style="margin:0;">
+                                            <button type="submit" class="btn btn-remover" id="id-btn-remover-{{ id }}">
+                                                <i class="bi bi-trash-fill"></i> Remover
+                                            </button>
+                                        </form>
                                     {% elif titulo == "Matrículas" %}
                                         <a href="/matriculas/editar/{{ id }}" class="btn btn-editar" id="id-btn-editar-{{ id }}">
                                             <i class="bi bi-pencil-fill"></i> Editar
@@ -1390,13 +2116,10 @@ if __name__ == '__main__':
                                     {% endif %}
                                 </td>
                             </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="6">Nenhum item encontrado.</td>
-                            </tr>
                             {% endfor %}
                         </tbody>
                     </table>
+                    {% endif %}
                 {% endif %}
             </div>
         </div>
@@ -1405,7 +2128,6 @@ if __name__ == '__main__':
     """
 
     # --- ARQUIVO HTML: edit_template.html (MODIFICADO) ---
-    # Apenas o ícone e CSS atualizados
     html_edit_template = """
     <!DOCTYPE html>
     <html lang="pt-br">
@@ -1424,7 +2146,10 @@ if __name__ == '__main__':
                 <li><a href="/alunos" class="{{ 'active' if 'Aluno' in titulo else '' }}"><i class="bi bi-people-fill"></i> Gerenciar Alunos</a></li>
                 <li><a href="/planos" class="{{ 'active' if 'Plano' in titulo else '' }}"><i class="bi bi-card-checklist"></i> Gerenciar Planos</a></li>
                 <li><a href="/funcionarios" class="{{ 'active' if 'Funcionário' in titulo else '' }}"><i class="bi bi-person-badge"></i> Gerenciar Funcionários</a></li>
+                <li><a href="/aparelhos" class="{{ 'active' if 'Aparelho' in titulo else '' }}"><i class="bi bi-gear-wide-connected"></i> Gerenciar Aparelhos</a></li>
+                <li><a href="/manutencoes" class="{{ 'active' if 'Manutenção' in titulo else '' }}"><i class="bi bi-tools"></i> Gerenciar Manutenções</a></li>
                 <li><a href="/matriculas" class="{{ 'active' if 'Matrícula' in titulo else '' }}"><i class="bi bi-journal-check"></i> Gerenciar Matrículas</a></li>
+                <li><a href="/relatorios"><i class="bi bi-bar-chart-line-fill"></i> Relatórios</a></li>
             </ul>
         </div>
         
@@ -1503,10 +2228,237 @@ if __name__ == '__main__':
     </body>
     </html>
     """
-    
+
+    # --- ARQUIVO HTML: relatorios_template.html (NOVO) ---
+    html_relatorios_template = """
+    <!DOCTYPE html>
+    <html lang="pt-br">
+    <head>
+        <meta charset="UTF-8">
+        <title>Academia - {{ titulo }}</title>
+        <style>__CSS_PLACEHOLDER__</style>
+    </head>
+    <body>
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1><i class="bi bi-barbell"></i> Academia</h1>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="/"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+                <li><a href="/alunos"><i class="bi bi-people-fill"></i> Gerenciar Alunos</a></li>
+                <li><a href="/planos"><i class="bi bi-card-checklist"></i> Gerenciar Planos</a></li>
+                <li><a href="/funcionarios"><i class="bi bi-person-badge"></i> Gerenciar Funcionários</a></li>
+                <li><a href="/aparelhos"><i class="bi bi-gear-wide-connected"></i> Gerenciar Aparelhos</a></li>
+                <li><a href="/manutencoes"><i class="bi bi-tools"></i> Gerenciar Manutenções</a></li>
+                <li><a href="/matriculas"><i class="bi bi-journal-check"></i> Gerenciar Matrículas</a></li>
+                <li><a href="/relatorios" class="active"><i class="bi bi-bar-chart-line-fill"></i> Relatórios</a></li>
+            </ul>
+        </div>
+        
+        <div class="main-content">
+            <div class="container">
+                <h1><i class="bi bi-bar-chart-line-fill"></i> {{ titulo }}</h1>
+                
+                <h2>Relatórios de Gestão</h2>
+                <div class="dashboard-grid">
+                    {% for rel in relatorios %}
+                    <div class="dashboard-card" style="display: block;">
+                        <div class="card-info">
+                            <h3 style="font-size: 1.5em; margin-bottom: 10px;">{{ rel.nome }}</h3>
+                            <a href="{{ rel.url }}" class="btn" style="padding: 8px 15px; font-size: 0.9em; text-align: center;">
+                                <i class="bi bi-eye-fill"></i> Visualizar
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    # --- ARQUIVO HTML: relatorio_detalhe.html (NOVO) ---
+    html_relatorio_detalhe = """
+    <!DOCTYPE html>
+    <html lang="pt-br">
+    <head>
+        <meta charset="UTF-8">
+        <title>Relatório - {{ titulo }}</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+        <style>__CSS_PLACEHOLDER__</style>
+    </head>
+    <body>
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1><i class="bi bi-barbell"></i> Academia</h1>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="/"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+                <li><a href="/alunos"><i class="bi bi-people-fill"></i> Gerenciar Alunos</a></li>
+                <li><a href="/planos"><i class="bi bi-card-checklist"></i> Gerenciar Planos</a></li>
+                <li><a href="/funcionarios"><i class="bi bi-person-badge"></i> Gerenciar Funcionários</a></li>
+                <li><a href="/matriculas"><i class="bi bi-journal-check"></i> Gerenciar Matrículas</a></li>
+                <li><a href="/aparelhos"><i class="bi bi-gear-wide-connected"></i> Gerenciar Aparelhos</a></li>
+                <li><a href="/manutencoes"><i class="bi bi-tools"></i> Gerenciar Manutenções</a></li>
+                <li><a href="/relatorios" class="active"><i class="bi bi-bar-chart-line-fill"></i> Relatórios</a></li>
+            </ul>
+        </div>
+        
+        <div class="main-content">
+            <div class="container">
+                <h1>{{ titulo }}</h1>
+                
+                <p>{{ descricao }}</p>
+
+                <div style="width: 80%; max-width: 800px; margin: 30px auto;">
+                    <canvas id="reportChart"></canvas>
+                </div>
+                
+                <h2 style="margin-top: 10px;">Resultado em Tabela</h2>
+
+                {% if dados %}
+                <table id="id-tabela-resultados">
+                    <thead>
+                        <tr>
+                            {% for key in dados[0].keys() %}
+                            {% if key != 'Valor_RAW' %} 
+                            <th>{{ key }}</th>
+                            {% endif %}
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in dados %}
+                        <tr>
+                            {% for key, value in item.items() %}
+                            {% if key != 'Valor_RAW' %}
+                            <td>{{ value }}</td>
+                            {% endif %}
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                    <div class="msg-erro">Nenhum dado encontrado para o período/critério atual.</div>
+                {% endif %}
+                
+                <h2 style="margin-top: 30px;">Total Geral</h2>
+                <div class="campo-fixo" style="padding: 15px;">
+                    <span style="font-size: 1.2em; font-weight: 700;">{{ total_geral }}</span>
+                </div>
+
+                <a href="/relatorios" class="btn btn-cancelar" style="margin-top: 20px;">
+                    <i class="bi bi-arrow-left"></i> Voltar aos Relatórios
+                </a>
+            </div>
+        </div>
+        
+        <script>
+            // --- Lógica de Geração dos Gráficos ---
+            document.addEventListener('DOMContentLoaded', function() {
+                const chartType = '{{ tipo_grafico }}';
+                const endpointApi = '{{ endpoint_api }}';
+                const ctx = document.getElementById('reportChart').getContext('2d');
+                
+                if (endpointApi && chartType) {
+                    fetch(endpointApi)
+                        .then(response => response.json())
+                        .then(data => {
+                            
+                            const defaultBarColor = 'rgba(0, 137, 123, 0.8)'; // Teal/Primary
+                            const defaultLineColor = 'rgba(220, 20, 60, 1)'; // Crimson for line
+                            
+                            let chartConfig = {};
+                            let chartDatasets = [];
+
+                            if (chartType === 'bar') {
+                                chartDatasets.push({
+                                    label: (data.labels && data.labels.length > 0 && data.labels[0].includes('Plano')) ? 'Faturamento Total (R$)' : 'Contagem de Alunos',
+                                    data: data.data,
+                                    backgroundColor: defaultBarColor,
+                                    borderColor: defaultBarColor,
+                                    borderWidth: 1
+                                });
+                                chartConfig = { type: 'bar', data: { labels: data.labels, datasets: chartDatasets } };
+                            } else if (chartType === 'combinado') {
+                                // Gráfico Combinado (RFS27: Custo como Barra, Contagem como Linha)
+                                
+                                // Dataset 1: Custo Total (Barra)
+                                chartDatasets.push({
+                                    type: 'bar',
+                                    label: 'Custo Total (R$)',
+                                    data: data.custos,
+                                    backgroundColor: defaultBarColor,
+                                    borderColor: '#006a5f',
+                                    borderWidth: 1,
+                                    yAxisID: 'y' // Eixo Y Principal (Esquerda)
+                                });
+                                
+                                // Dataset 2: Contagem (Linha)
+                                chartDatasets.push({
+                                    type: 'line',
+                                    label: 'Contagem',
+                                    data: data.contagem,
+                                    backgroundColor: 'transparent',
+                                    borderColor: defaultLineColor, 
+                                    borderWidth: 2,
+                                    fill: false,
+                                    tension: 0.5, // Aumentado para 0.5 para maior suavidade
+                                    yAxisID: 'y1' // Eixo Y Secundário (Direita)
+                                });
+                                
+                                chartConfig = { type: 'bar', data: { labels: data.labels, datasets: chartDatasets } };
+                                
+                                chartConfig.options = {
+                                    responsive: true,
+                                    interaction: {
+                                        mode: 'index',
+                                        intersect: false,
+                                    },
+                                    scales: {
+                                        y: {
+                                            type: 'linear',
+                                            display: true,
+                                            position: 'left',
+                                            title: { display: true, text: 'Custo (R$)' }
+                                        },
+                                        y1: {
+                                            type: 'linear',
+                                            display: true,
+                                            position: 'right',
+                                            grid: { drawOnChartArea: false }, // Oculta linhas para o eixo da direita
+                                            title: { display: true, text: 'Contagem de Manutenções' }
+                                        }
+                                    }
+                                };
+                            }
+                            
+                            // Configurações Comuns
+                            if (!chartConfig.options) {
+                                chartConfig.options = {
+                                    responsive: true,
+                                    scales: {
+                                        y: { beginAtZero: true }
+                                    }
+                                };
+                            }
+                            
+                            new Chart(ctx, chartConfig);
+                        });
+                }
+            });
+        </script>
+    </body>
+    </html>
+    """
+
     # --- LÓGICA PARA CRIAR OS ARQUIVOS ---
     html_crud = html_crud_template.replace("__CSS_PLACEHOLDER__", css_global)
     html_edit = html_edit_template.replace("__CSS_PLACEHOLDER__", css_global)
+    html_relatorios = html_relatorios_template.replace("__CSS_PLACEHOLDER__", css_global)
+    html_relatorio_detalhe_output = html_relatorio_detalhe.replace("__CSS_PLACEHOLDER__", css_global)
 
     if not os.path.exists('templates'):
         os.makedirs('templates')
@@ -1516,9 +2468,15 @@ if __name__ == '__main__':
     
     with open('templates/edit_template.html', 'w', encoding='utf-8') as f:
         f.write(html_edit)
+        
+    with open('templates/relatorios_template.html', 'w', encoding='utf-8') as f:
+        f.write(html_relatorios)
+        
+    with open('templates/relatorio_detalhe.html', 'w', encoding='utf-8') as f:
+        f.write(html_relatorio_detalhe_output)
 
     print("="*50)
-    print("Servidor Academia v7.2 (UI Polida) está pronto!")
+    print("Servidor Academia v3.1 (FINAL - Sincronizado para Entrega)")
     print("Acesse em: http://127.0.0.1:5000")
     print("="*50)
     app.run(debug=True, port=5000)
